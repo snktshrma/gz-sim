@@ -20,7 +20,10 @@
 
 // The only required include in the header is this one.
 // All others will depend on what your plugin does.
+#include <gz/sim/Model.hh>
+#include <gz/sim/Util.hh>
 #include <gz/sim/System.hh>
+#include <gz/plugin/Register.hh>
 
 // It's good practice to use a custom namespace for your project.
 namespace proximity_plugin

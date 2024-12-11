@@ -1,53 +1,55 @@
-/*
- * Copyright (C) 2021 Open Source Robotics Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
-*/
-
-// We'll use a string and the gzmsg command below for a brief example.
-// Remove these includes if your plugin doesn't need them.
-#include <string>
-#include <gz/common/Console.hh>
-
-// This header is required to register plugins. It's good practice to place it
-// in the cc file, like it's done here.
+#include <gz/sim/Model.hh>
+#include <gz/sim/Util.hh>
+#include <gz/sim/System.hh>
 #include <gz/plugin/Register.hh>
-
-// Don't forget to include the plugin's header.
-#include "ProximityPlugin.hh"
-
-// This is required to register the plugin. Make sure the interfaces match
-// what's in the header.
-GZ_ADD_PLUGIN(
-    proximity_plugin::ProximityPlugin,
-    gz::sim::System,
-    proximity_plugin::ProximityPlugin::ISystemPostUpdate)
-
-using namespace proximity_plugin;
-
-// Here we implement the PostUpdate function, which is called at every
-// iteration.
-void ProximityPlugin::PostUpdate(const gz::sim::UpdateInfo &_info,
-    const gz::sim::EntityComponentManager &/*_ecm*/)
+ 
+using namespace gz;
+using namespace sim;
+using namespace systems;
+ 
+// Inherit from System and 2 extra interfaces:
+// ISystemConfigure and ISystemPostUpdate
+class ProximityPlugin
+      : public System,
+        public ISystemConfigure,
+        public ISystemPostUpdate
 {
-  // This is a simple example of how to get information from UpdateInfo.
-  std::string msg = "Hello, world! Simulation is ";
-  if (!_info.paused)
-    msg += "not ";
-  msg += "paused.";
-
-  // Messages printed with gzmsg only show when running with verbosity 3 or
-  // higher (i.e. gz sim -v 3)
-  gzmsg << msg << std::endl;
-}
+  // Implement Configure callback, provided by ISystemConfigure
+  // and called once at startup.
+  virtual void Configure(const Entity &_entity,
+                         const std::shared_ptr<const sdf::Element> &_sdf,
+                         EntityComponentManager &_ecm,
+                         EventManager &/*_eventMgr*/) override
+  {
+    // Read property from SDF
+    auto linkName = _sdf->Get<std::string>("link_name");
+ 
+    // Create model object to access convenient functions
+    auto model = Model(_entity);
+ 
+    // Get link entity
+    this->linkEntity = model.LinkByName(_ecm, linkName);
+  }
+ 
+  // Implement PostUpdate callback, provided by ISystemPostUpdate
+  // and called at every iteration, after physics is done
+  virtual void PostUpdate(const UpdateInfo &/*_info*/,
+                          const EntityComponentManager &_ecm) override
+  {
+    // Get link pose and print it
+    std::cout << worldPose(this->linkEntity, _ecm) << std::endl;
+  }
+ 
+  // ID of link entity
+  private: Entity linkEntity;
+};
+ 
+// Register plugin
+GZ_ADD_PLUGIN(ProximityPlugin,
+                    gz::sim::System,
+                    ProximityPlugin::ISystemConfigure,
+                    ProximityPlugin::ISystemPostUpdate)
+ 
+// Add plugin alias so that we can refer to the plugin without the version
+// namespace
+GZ_ADD_PLUGIN_ALIAS(ProximityPlugin, "gz::sim::systems::ProximityPlugin")
